@@ -12,11 +12,33 @@ may differ slightly.
 | EBS root volume | 8 GB gp3 | $0.64 |
 | EBS data volume | 4 GB gp3 | $0.32 |
 | Route53 hosted zone | 1 zone | $0.50 |
+| Elastic IP | not used | **$0** |
 | **Total fixed** | | **$1.46** |
 
 Everything else (CloudFront, API Gateway, Lambda, EventBridge,
 CloudWatch) is pay-per-use and covered by the AWS free tier for
 low-traffic sites.
+
+### Why no Elastic IP?
+
+An Elastic IP costs **$3.65/month** when attached to a stopped instance
+(which is most of the time in this stack). Instead, we let the EC2 get a
+fresh public IP on every start and use a Lambda + Route53 to update the
+DNS record automatically. CloudFront re-resolves the origin hostname
+within 60 seconds.
+
+This saves **$44/year** with zero UX impact — the visitor always sees
+the same `https://app.example.com` URL regardless of the underlying IP.
+
+### Comparison with traditional setups
+
+| Setup | Monthly cost |
+| ----- | -----------: |
+| **This stack** (scale-to-zero) | ~$1.50 |
+| EC2 t4g.small always-on | $6.13 |
+| EC2 + Elastic IP (stopped 90%) | $3.65 + $0.64 = $4.29 |
+| EC2 + ALB + always-on | $22+ |
+| Lightsail $5 plan | $5.00 |
 
 ## Scenario 1: Zero traffic (idle)
 
