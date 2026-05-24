@@ -64,7 +64,11 @@ For a site with a handful of daily visitors:
 | EC2 compute (≈15 h/mo)  | $0.13 |
 | CloudFront / API GW     | $0 (free tier) |
 | Lambda × 3              | $0 (free tier) |
+| Elastic IP              | $0 (not needed!) |
 | **Total**               | **~$1.6/mo** |
+
+> 💡 A typical always-on setup (EC2 24/7 + Elastic IP + ALB) costs
+> **$25-40/month** for the same workload. This stack is **95% cheaper**.
 
 A 24-hour bot flood (~1.4 M requests) adds about **$1-3** thanks to
 CloudFront caching and the loading page absorbing repeats. Numbers and
