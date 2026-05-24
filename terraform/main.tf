@@ -1,0 +1,38 @@
+locals {
+  common_tags = merge(
+    {
+      Project   = var.name_prefix
+      ManagedBy = "terraform"
+      Repo      = "scale-to-zero-aws-ec2"
+    },
+    var.tags,
+  )
+}
+
+# Default VPC + a default subnet in the first AZ. We don't manage VPC
+# resources here — bring-your-own VPC would be a separate module.
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnet" "default_a" {
+  vpc_id            = data.aws_vpc.default.id
+  availability_zone = "${var.aws_region}a"
+  default_for_az    = true
+}
+
+# Latest Ubuntu 24.04 LTS ARM64 from Canonical.
+data "aws_ami" "ubuntu_arm" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}

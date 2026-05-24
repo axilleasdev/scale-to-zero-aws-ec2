@@ -1,0 +1,39 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Lines starting with # are comments.
+
+# ─── Required ────────────────────────────────────────────────────────────────
+
+# Short prefix for all resource names (max 12 chars).
+name_prefix = "myapp"
+
+# AWS region for compute, Lambda, API Gateway, etc.
+aws_region = "eu-central-1"
+
+# The user-facing hostname. ACM cert is issued for this.
+# Example: "app.example.com"
+public_domain = ""
+
+# Route53-managed hostname that CloudFront uses as the primary origin.
+# Must live under origin_zone_name.
+# Example: "origin.app-aws.example.com"
+origin_subdomain = ""
+
+# Route53 hosted zone name (delegated from your main DNS provider).
+# Example: "app-aws.example.com"
+origin_zone_name = ""
+
+# ─── Optional tuning ─────────────────────────────────────────────────────────
+
+# instance_type          = "t4g.small"
+# root_volume_size_gb    = 8
+# data_volume_size_gb    = 4
+# app_port               = 8080
+# auto_stop_idle_window_min  = 15
+# auto_stop_threshold_pps    = 3.0
+# auto_stop_min_uptime_min   = 10
+# log_retention_days     = 14
+
+# tags = {
+#   Environment = "dev"
+#   Owner       = "your-name"
+# }
