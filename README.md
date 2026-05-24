@@ -73,7 +73,8 @@ math in [`docs/cost-analysis.md`](docs/cost-analysis.md).
 ## What you get
 
 - **No URL changes**: visitors always see the same `https://app.example.com`
-- **Persistent data**: EBS data volume survives stop/start (no Elastic IP)
+- **No Elastic IP needed**: saves ~$3.65/month — Route53 + Lambda handle the dynamic IP automatically
+- **Persistent data**: EBS data volume survives stop/start (no data loss between sessions)
 - **HTTPS by default**: CloudFront + ACM, free
 - **Sane bot defense**: Cloudflare in front, CloudFront cache, AWS Budget alarm
 - **One-command deploy**: `terraform apply`
