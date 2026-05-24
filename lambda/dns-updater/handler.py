@@ -1,20 +1,20 @@
 """
-Recipe DNS Updater — keeps the Route53 A record in sync with the EC2's
-current public IP.
+DNS Updater — keeps the Route53 A record in sync with the EC2's current
+public IP.
 
-Triggered by EventBridge whenever the recipe EC2 transitions to 'running'.
+Triggered by EventBridge whenever the managed EC2 transitions to 'running'.
 Reads the instance's current public IP via DescribeInstances and upserts
-the Route53 A record at recipe-origin.<zone>.
+the Route53 A record that CloudFront uses as its primary origin.
 
 Why this matters:
   We don't pay for an Elastic IP, so the EC2 gets a new public IP every
-  start. CloudFront's primary origin is recipe-origin.<zone>, so the DNS
-  must always point to the *current* IP for direct traffic to work.
+  start. CloudFront's primary origin is a hostname that resolves via this
+  A record, so the DNS must always point to the *current* IP.
 
 Environment variables:
-  INSTANCE_ID   — EC2 instance to read from (required)
+  INSTANCE_ID    — EC2 instance to read from (required)
   HOSTED_ZONE_ID — Route53 hosted zone ID where we maintain the record
-  RECORD_NAME   — full DNS name we manage (e.g. recipe-origin.recipe-aws.foo.gr)
+  RECORD_NAME    — full DNS name we manage (e.g. origin.app-aws.example.com)
 
 IAM permissions (set in Terraform):
   ec2:DescribeInstances
@@ -45,7 +45,7 @@ def upsert_a_record(ip: str) -> str:
     resp = route53.change_resource_record_sets(
         HostedZoneId=HOSTED_ZONE_ID,
         ChangeBatch={
-            "Comment": "Recipe site EC2 IP refresh",
+            "Comment": "EC2 IP refresh (scale-to-zero)",
             "Changes": [
                 {
                     "Action": "UPSERT",

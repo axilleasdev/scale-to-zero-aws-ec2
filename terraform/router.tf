@@ -76,6 +76,7 @@ resource "aws_lambda_function" "router" {
     variables = {
       INSTANCE_ID    = aws_instance.app.id
       APP_PORT       = tostring(var.app_port)
+      APP_NAME       = var.name_prefix
       HEALTH_PATH    = "/"
       HEALTH_TIMEOUT = "2"
       PROXY_TIMEOUT  = "25"

@@ -119,7 +119,7 @@ scale-to-zero-aws-ec2/
 ## Status
 
 Battle-tested on a real-world deployment for a side project (a PHP/MySQL
-recipe site). The pattern itself is straightforward but assembling all
+web app). The pattern itself is straightforward but assembling all
 the AWS bits without breaking anything took a couple of weekends — this
 repo is the tidy version of that.
 

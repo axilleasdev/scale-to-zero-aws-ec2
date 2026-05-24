@@ -1,5 +1,5 @@
 """
-Recipe Site Router — wakes EC2 on demand and proxies traffic to it.
+EC2 On-Demand Router — wakes EC2 on demand and proxies traffic to it.
 
 Sits behind API Gateway, behind CloudFront. Two roles:
 
@@ -7,10 +7,10 @@ Sits behind API Gateway, behind CloudFront. Two roles:
    auto-refreshes. The first request that arrives while the EC2 is
    stopped triggers StartInstances.
 
-2. Proxy: if the EC2 is running and the app responds on :8080, forward
-   the entire HTTP request and return the response. CloudFront only
-   routes mutating requests (POST/PUT/DELETE on *.php and /api/*) here —
-   GETs go directly to the EC2 origin via the failover origin group.
+2. Proxy: if the EC2 is running and the app responds, forward the entire
+   HTTP request and return the response. CloudFront only routes mutating
+   requests (POST/PUT/DELETE on configured paths) here — GETs go
+   directly to the EC2 origin via the failover origin group.
 
 We skip Elastic IPs to save money, so the EC2 has a different public IP
 on every start. We discover it on each invocation via DescribeInstances.
@@ -18,6 +18,7 @@ on every start. We discover it on each invocation via DescribeInstances.
 Environment variables:
   INSTANCE_ID    — EC2 instance to control (required)
   APP_PORT       — port the app listens on (default: 8080)
+  APP_NAME       — display name shown on the loading page (default: "App")
   HEALTH_PATH    — readiness probe path (default: /)
   HEALTH_TIMEOUT — probe timeout in seconds (default: 2)
   PROXY_TIMEOUT  — upstream proxy request timeout in seconds (default: 25)
@@ -40,6 +41,7 @@ ec2 = boto3.client("ec2")
 
 INSTANCE_ID = os.environ["INSTANCE_ID"]
 APP_PORT = os.environ.get("APP_PORT", "8080")
+APP_NAME = os.environ.get("APP_NAME", "App")
 HEALTH_PATH = os.environ.get("HEALTH_PATH", "/")
 HEALTH_TIMEOUT = float(os.environ.get("HEALTH_TIMEOUT", "2"))
 PROXY_TIMEOUT = float(os.environ.get("PROXY_TIMEOUT", "25"))
@@ -188,19 +190,19 @@ def _build_response(resp: Any) -> dict[str, Any]:
 
 def loading_page_html(state: str) -> str:
     state_msg = {
-        "stopped": "Ξυπνάμε τον server…",
-        "pending": "Ο server ξεκινάει…",
-        "warming_up": "Ο server είναι ενεργός — περιμένουμε την εφαρμογή…",
-        "stopping": "Παρακαλώ περιμένετε…",
-    }.get(state, "Φορτώνει…")
+        "stopped": "Starting the server…",
+        "pending": "Server is booting…",
+        "warming_up": "Server is up — waiting for the app to start…",
+        "stopping": "Please wait…",
+    }.get(state, "Loading…")
 
     return f"""<!doctype html>
-<html lang="el">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="5">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Achilleas' Kitchen — φόρτωση</title>
+<title>{APP_NAME} — loading</title>
 <style>
   :root {{ color-scheme: light dark; }}
   body {{
@@ -237,10 +239,10 @@ def loading_page_html(state: str) -> str:
 <body>
   <div class="card">
     <div class="spinner"></div>
-    <h1>Achilleas' Kitchen</h1>
+    <h1>{APP_NAME}</h1>
     <p>{state_msg}</p>
-    <p>Συνήθως κάνει 30–60 δευτερόλεπτα.</p>
-    <p class="small">Η σελίδα ανανεώνεται αυτόματα.</p>
+    <p>This usually takes about 30–60 seconds.</p>
+    <p class="small">This page will refresh automatically.</p>
   </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 """
-Recipe Auto-Stop — stops the EC2 when it has been idle for too long.
+Auto-Stop — stops the EC2 when it has been idle for too long.
 
 Triggered by EventBridge on a fixed schedule (every 5 minutes by default).
 We define "idle" as: average outbound network packets per second over the
