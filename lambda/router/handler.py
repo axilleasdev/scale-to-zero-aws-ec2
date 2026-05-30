@@ -243,6 +243,7 @@ def loading_page_html(state: str) -> str:
     <p>{state_msg}</p>
     <p>This usually takes about 30–60 seconds.</p>
     <p class="small">This page will refresh automatically.</p>
+    <p class="small" style="margin-top: 2rem;">Powered by <a href="https://github.com/axilleasdev/scale-to-zero-aws-ec2" style="color: inherit;">scale-to-zero-aws-ec2</a></p>
   </div>
 </body>
 </html>

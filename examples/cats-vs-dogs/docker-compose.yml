@@ -1,0 +1,19 @@
+# Example workload: Cats vs Dogs voting app.
+#
+# A fun, visual demo that shows data persistence across EC2 stop/start cycles.
+# Listens on port 8080 (matching the default `app_port` variable).
+#
+# Usage (on the EC2 via SSM):
+#   cd /home/ubuntu/cats-vs-dogs
+#   docker compose up -d
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_PATH=/data/votes.db
+    volumes:
+      - /mnt/data/cats-vs-dogs:/data
+    restart: unless-stopped

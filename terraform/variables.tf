@@ -20,20 +20,21 @@ variable "aws_region" {
 }
 
 variable "public_domain" {
-  description = "The user-facing hostname (e.g. \"app.example.com\"). The ACM cert is issued for this name and CloudFront is aliased to it."
+  description = "The user-facing hostname (e.g. \"app.example.com\"). Leave empty to use the CloudFront domain directly (no custom domain, no ACM cert needed)."
   type        = string
+  default     = ""
 }
 
 variable "origin_subdomain" {
-  description = "FQDN where Route53 publishes the EC2's current public IP. CloudFront uses it as the primary origin. Keep it under a *delegated* zone so the dns-updater Lambda can write to it without touching your main DNS provider."
+  description = "FQDN where Route53 publishes the EC2's current public IP. CloudFront uses it as the primary origin. Required only when public_domain is set."
   type        = string
-  # Example: "origin.app-aws.example.com"
+  default     = ""
 }
 
 variable "origin_zone_name" {
-  description = "Route53 hosted zone that holds origin_subdomain. Must end with a trailing dot? No — just the bare zone name."
+  description = "Route53 hosted zone that holds origin_subdomain. Required only when public_domain is set."
   type        = string
-  # Example: "app-aws.example.com"
+  default     = ""
 }
 
 ##################################################################################

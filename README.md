@@ -98,14 +98,15 @@ If those matter, you probably want App Runner or Fargate, not this.
 git clone https://github.com/axilleasdev/scale-to-zero-aws-ec2.git
 cd scale-to-zero-aws-ec2/terraform
 
-# Required inputs: domain, AWS account, the cert validation CNAME you'll
-# add in your DNS provider, etc.
 cp terraform.tfvars.example terraform.tfvars
 # … edit terraform.tfvars …
 
 terraform init
 terraform apply
 ```
+
+The EC2 user-data script automatically deploys the demo app
+(`examples/cats-vs-dogs`) on first boot — no manual SSH/SSM needed.
 
 Step-by-step walkthrough in [`docs/setup.md`](docs/setup.md).
 
@@ -117,7 +118,7 @@ scale-to-zero-aws-ec2/
 ├── lambda/           # Python source for the 3 control-plane Lambdas
 ├── docs/             # Architecture, cost analysis, setup guide
 ├── examples/         # Sample apps you can deploy as the workload
-│   └── hello-world/  # Minimal Docker Compose stack
+│   └── cats-vs-dogs/ # Voting app (Python + SQLite + Tailwind)
 └── LICENSE
 ```
 

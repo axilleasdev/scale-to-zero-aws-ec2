@@ -34,8 +34,8 @@ output "cloudfront_domain" {
 }
 
 output "public_url" {
-  description = "Final public URL once your DNS CNAME is in place."
-  value       = "https://${var.public_domain}"
+  description = "Final public URL. If using a custom domain, point its CNAME to cloudfront_domain."
+  value       = local.use_custom_domain ? "https://${var.public_domain}" : "https://${aws_cloudfront_distribution.main.domain_name}"
 }
 
 output "route53_nameservers" {
@@ -49,15 +49,15 @@ output "origin_record_name" {
 }
 
 output "acm_validation_record" {
-  description = "ADD THIS in your DNS provider so ACM can validate the certificate. The first apply will fail at certificate_validation; that's expected — add the record, re-apply."
-  value = {
-    for dvo in aws_acm_certificate.public.domain_validation_options :
+  description = "ADD THIS in your DNS provider so ACM can validate the certificate. Only needed with a custom domain."
+  value = local.use_custom_domain ? {
+    for dvo in aws_acm_certificate.public[0].domain_validation_options :
     dvo.domain_name => {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
       value = dvo.resource_record_value
     }
-  }
+  } : {}
 }
 
 output "router_function_name" {

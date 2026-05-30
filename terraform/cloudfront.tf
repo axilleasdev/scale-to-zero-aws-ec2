@@ -14,10 +14,11 @@
 ##################################################################################
 
 ##################################################################################
-# ACM cert (us-east-1)
+# ACM cert (us-east-1) — only when using a custom domain
 ##################################################################################
 
 resource "aws_acm_certificate" "public" {
+  count             = local.use_custom_domain ? 1 : 0
   provider          = aws.us_east_1
   domain_name       = var.public_domain
   validation_method = "DNS"
@@ -30,8 +31,9 @@ resource "aws_acm_certificate" "public" {
 }
 
 resource "aws_acm_certificate_validation" "public" {
+  count           = local.use_custom_domain ? 1 : 0
   provider        = aws.us_east_1
-  certificate_arn = aws_acm_certificate.public.arn
+  certificate_arn = aws_acm_certificate.public[0].arn
 }
 
 ##################################################################################
@@ -115,7 +117,7 @@ resource "aws_cloudfront_distribution" "main" {
   price_class         = "PriceClass_100"
   http_version        = "http2"
   is_ipv6_enabled     = true
-  aliases             = [var.public_domain]
+  aliases             = local.use_custom_domain ? [var.public_domain] : []
   wait_for_deployment = false
 
   # GETs go through the origin group (with failover). POSTs cannot — see
@@ -232,9 +234,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.public.certificate_arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
+    cloudfront_default_certificate = local.use_custom_domain ? false : true
+    acm_certificate_arn            = local.use_custom_domain ? aws_acm_certificate_validation.public[0].certificate_arn : null
+    ssl_support_method             = local.use_custom_domain ? "sni-only" : null
+    minimum_protocol_version       = local.use_custom_domain ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-cf" })

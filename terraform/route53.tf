@@ -8,7 +8,7 @@
 ##################################################################################
 
 resource "aws_route53_zone" "origin" {
-  name    = var.origin_zone_name
+  name    = local.origin_zone_name
   comment = "Delegated zone holding the dynamic origin A record."
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-origin-zone" })
@@ -18,7 +18,7 @@ resource "aws_route53_zone" "origin" {
 # `lifecycle.ignore_changes` keeps Terraform from fighting that.
 resource "aws_route53_record" "origin" {
   zone_id = aws_route53_zone.origin.zone_id
-  name    = var.origin_subdomain
+  name    = local.origin_subdomain
   type    = "A"
   ttl     = 60
 
