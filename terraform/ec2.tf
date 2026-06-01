@@ -88,8 +88,8 @@ resource "aws_ebs_volume" "data" {
 
   lifecycle {
     # Avoid losing the disk if you accidentally `terraform destroy` the
-    # whole stack. Remove this when you really want it gone.
-    prevent_destroy = true
+    # whole stack. Set prevent_destroy = true if you have important data.
+    prevent_destroy = false
   }
 }
 

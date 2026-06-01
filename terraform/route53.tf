@@ -118,6 +118,8 @@ resource "aws_cloudwatch_log_group" "dns_updater" {
   name              = "/aws/lambda/${aws_lambda_function.dns_updater.function_name}"
   retention_in_days = var.log_retention_days
 
+  depends_on = [aws_cloudwatch_event_rule.ec2_running]
+
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-dns-updater-logs" })
 }
 

@@ -90,6 +90,8 @@ resource "aws_cloudwatch_log_group" "router" {
   name              = "/aws/lambda/${aws_lambda_function.router.function_name}"
   retention_in_days = var.log_retention_days
 
+  depends_on = [aws_apigatewayv2_stage.default]
+
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-router-logs" })
 }
 

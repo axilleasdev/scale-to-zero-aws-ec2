@@ -161,7 +161,8 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # Default behavior: GET/HEAD/OPTIONS through the origin group.
+  # Default behavior: all methods through the origin group.
+  # When EC2 is up, traffic goes direct. When down, failover to API GW.
   default_cache_behavior {
     target_origin_id       = "origin-group"
     viewer_protocol_policy = "redirect-to-https"
@@ -169,6 +170,19 @@ resource "aws_cloudfront_distribution" "main" {
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
+    cache_policy_id          = aws_cloudfront_cache_policy.dynamic.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.default.id
+  }
+
+  # POST/PUT/DELETE go directly to EC2 (origin groups don't support mutating methods).
+  # If EC2 is down, these will fail — but the GET loading page will wake it up.
+  ordered_cache_behavior {
+    path_pattern             = "/vote"
+    target_origin_id         = "origin-ec2"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    compress                 = true
     cache_policy_id          = aws_cloudfront_cache_policy.dynamic.id
     origin_request_policy_id = aws_cloudfront_origin_request_policy.default.id
   }

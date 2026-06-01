@@ -90,6 +90,10 @@ resource "aws_cloudwatch_log_group" "auto_stop" {
   name              = "/aws/lambda/${aws_lambda_function.auto_stop.function_name}"
   retention_in_days = var.log_retention_days
 
+  # Ensure EventBridge rules are destroyed BEFORE this log group,
+  # preventing the Lambda from being triggered and auto-recreating it.
+  depends_on = [aws_cloudwatch_event_rule.auto_stop_tick]
+
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-auto-stop-logs" })
 }
 
