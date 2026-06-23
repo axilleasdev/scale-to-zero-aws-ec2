@@ -40,12 +40,12 @@ output "public_url" {
 
 output "route53_nameservers" {
   description = "ADD THESE as NS records in your DNS provider so origin_zone_name is delegated to Route53."
-  value       = aws_route53_zone.origin.name_servers
+  value       = local.use_custom_domain ? aws_route53_zone.origin[0].name_servers : []
 }
 
 output "origin_record_name" {
   description = "Hostname CloudFront uses as the primary origin (auto-updated by dns-updater Lambda)."
-  value       = aws_route53_record.origin.name
+  value       = local.use_custom_domain ? aws_route53_record.origin[0].name : "${replace(aws_instance.app.public_ip, ".", "-")}.sslip.io"
 }
 
 output "acm_validation_record" {

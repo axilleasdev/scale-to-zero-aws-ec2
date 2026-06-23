@@ -1,23 +1,30 @@
 ##################################################################################
 # Route53 hosted zone + dns-updater Lambda
 #
-# We don't pay for an Elastic IP, so the EC2's public IP changes on every
-# start. CloudFront's primary origin is `var.origin_subdomain` (an A
-# record in this hosted zone). The dns-updater Lambda refreshes that A
-# record whenever the EC2 transitions to "running".
+# TWO MODES:
+#   1. Custom domain (public_domain set): Creates a public Route53 zone +
+#      A record. dns-updater Lambda updates the A record on EC2 start.
+#      CloudFront resolves the hostname publicly.
+#
+#   2. No custom domain: Skips Route53 entirely. dns-updater Lambda updates
+#      the CloudFront origin directly with the EC2's public IP.
+##################################################################################
+
+##################################################################################
+# Route53 zone + record — only when using a custom domain
 ##################################################################################
 
 resource "aws_route53_zone" "origin" {
+  count   = local.use_custom_domain ? 1 : 0
   name    = local.origin_zone_name
   comment = "Delegated zone holding the dynamic origin A record."
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-origin-zone" })
 }
 
-# Initial A record. The Lambda will overwrite it on every EC2 start.
-# `lifecycle.ignore_changes` keeps Terraform from fighting that.
 resource "aws_route53_record" "origin" {
-  zone_id = aws_route53_zone.origin.zone_id
+  count   = local.use_custom_domain ? 1 : 0
+  zone_id = aws_route53_zone.origin[0].zone_id
   name    = local.origin_subdomain
   type    = "A"
   ttl     = 60
@@ -67,32 +74,46 @@ resource "aws_iam_role_policy" "dns_updater" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "DescribeOurInstance"
-        Effect   = "Allow"
-        Action   = ["ec2:DescribeInstances"]
-        Resource = "*"
-      },
-      {
-        Sid      = "ChangeOurZone"
-        Effect   = "Allow"
-        Action   = ["route53:ChangeResourceRecordSets", "route53:GetChange"]
-        Resource = "arn:aws:route53:::hostedzone/${aws_route53_zone.origin.zone_id}"
-      },
-      {
-        Sid      = "GetChangeStatus"
-        Effect   = "Allow"
-        Action   = ["route53:GetChange"]
-        Resource = "arn:aws:route53:::change/*"
-      },
-    ]
+    Statement = concat(
+      [
+        {
+          Sid      = "DescribeOurInstance"
+          Effect   = "Allow"
+          Action   = ["ec2:DescribeInstances"]
+          Resource = "*"
+        },
+      ],
+      # With custom domain: allow Route53 changes
+      local.use_custom_domain ? [
+        {
+          Sid      = "ChangeOurZone"
+          Effect   = "Allow"
+          Action   = ["route53:ChangeResourceRecordSets", "route53:GetChange"]
+          Resource = "arn:aws:route53:::hostedzone/${aws_route53_zone.origin[0].zone_id}"
+        },
+        {
+          Sid      = "GetChangeStatus"
+          Effect   = "Allow"
+          Action   = ["route53:GetChange"]
+          Resource = "arn:aws:route53:::change/*"
+        },
+      ] : [],
+      # Without custom domain: allow CloudFront origin update
+      local.use_custom_domain ? [] : [
+        {
+          Sid      = "UpdateCloudFrontOrigin"
+          Effect   = "Allow"
+          Action   = ["cloudfront:GetDistribution", "cloudfront:GetDistributionConfig", "cloudfront:UpdateDistribution"]
+          Resource = aws_cloudfront_distribution.main.arn
+        },
+      ],
+    )
   })
 }
 
 resource "aws_lambda_function" "dns_updater" {
   function_name    = "${var.name_prefix}-dns-updater"
-  description      = "Updates the Route53 A record with the EC2's current public IP."
+  description      = local.use_custom_domain ? "Updates the Route53 A record with the EC2's current public IP." : "Updates CloudFront origin with the EC2's current public IP."
   filename         = data.archive_file.dns_updater.output_path
   source_code_hash = data.archive_file.dns_updater.output_base64sha256
 
@@ -100,15 +121,22 @@ resource "aws_lambda_function" "dns_updater" {
   runtime = "python3.13"
   handler = "handler.lambda_handler"
 
-  timeout     = 15
+  timeout     = 30
   memory_size = 128
 
   environment {
-    variables = {
-      INSTANCE_ID    = aws_instance.app.id
-      HOSTED_ZONE_ID = aws_route53_zone.origin.zone_id
-      RECORD_NAME    = aws_route53_record.origin.name
-    }
+    variables = merge(
+      { INSTANCE_ID = aws_instance.app.id },
+      local.use_custom_domain ? {
+        MODE           = "route53"
+        HOSTED_ZONE_ID = aws_route53_zone.origin[0].zone_id
+        RECORD_NAME    = aws_route53_record.origin[0].name
+        } : {
+        MODE            = "cloudfront"
+        DISTRIBUTION_ID = aws_cloudfront_distribution.main.id
+        ORIGIN_ID       = "origin-ec2"
+      },
+    )
   }
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-dns-updater" })

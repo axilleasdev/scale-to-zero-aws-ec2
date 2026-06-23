@@ -1,10 +1,10 @@
 locals {
   use_custom_domain = var.public_domain != ""
 
-  # Auto-generate origin zone/subdomain if not provided.
-  # Uses a private hosted zone name based on the prefix.
-  origin_zone_name  = var.origin_zone_name != "" ? var.origin_zone_name : "${var.name_prefix}-origin.internal"
-  origin_subdomain  = var.origin_subdomain != "" ? var.origin_subdomain : "ec2.${local.origin_zone_name}"
+  # With custom domain: use a public delegated Route53 zone (like make-iac-great).
+  # Without: skip Route53, use EC2 public IP directly as CloudFront origin.
+  origin_zone_name = var.origin_zone_name != "" ? var.origin_zone_name : "${var.name_prefix}-origin.internal"
+  origin_subdomain = var.origin_subdomain != "" ? var.origin_subdomain : "ec2.${local.origin_zone_name}"
 
   common_tags = merge(
     {

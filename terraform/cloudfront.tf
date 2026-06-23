@@ -57,8 +57,8 @@ resource "aws_cloudfront_cache_policy" "static" {
 }
 
 resource "aws_cloudfront_cache_policy" "dynamic" {
-  name        = "${var.name_prefix}-dynamic"
-  comment     = "Effectively no caching: pass cookies/queries through."
+  name    = "${var.name_prefix}-dynamic"
+  comment = "Effectively no caching: pass cookies/queries through."
   # AWS rejects min_ttl=0 with header/cookie customization, so use 1.
   default_ttl = 1
   max_ttl     = 1
@@ -134,8 +134,11 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   origin {
-    origin_id   = "origin-ec2"
-    domain_name = aws_route53_record.origin.name
+    origin_id = "origin-ec2"
+    # With custom domain: Route53 hostname (publicly resolvable).
+    # Without: <ip>.sslip.io (free wildcard DNS that resolves to the IP).
+    # The dns-updater Lambda updates this via UpdateDistribution on EC2 start.
+    domain_name = local.use_custom_domain ? aws_route53_record.origin[0].name : "${replace(aws_instance.app.public_ip, ".", "-")}.sslip.io"
 
     custom_origin_config {
       http_port              = var.app_port
@@ -255,4 +258,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-cf" })
+
+  # The dns-updater Lambda changes origin-ec2's domain_name when the EC2
+  # gets a new IP. Don't fight that drift.
+  lifecycle {
+    ignore_changes = [origin]
+  }
 }
