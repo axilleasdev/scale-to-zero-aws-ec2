@@ -48,3 +48,5 @@ jobs:
       - name: Test
         run: pytest tests/ -v
         if: hashFiles('tests/') != ''
+        env:
+          AWS_DEFAULT_REGION: us-east-1
