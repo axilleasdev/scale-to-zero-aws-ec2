@@ -1,25 +1,17 @@
 """
-DNS Updater — keeps the Route53 A record in sync with the EC2's current
-public IP.
+DNS Updater — keeps CloudFront pointing at the EC2's current public IP.
+
+Two modes (set via MODE env var):
+
+  route53:    Updates a Route53 A record. CloudFront resolves the hostname.
+              Used when a custom domain with a delegated public zone exists.
+
+  cloudfront: Updates the CloudFront origin's domain_name directly with the
+              EC2's public IP. Used when no custom domain is configured (the
+              .internal zone trick doesn't work because CloudFront can't
+              resolve private zones).
 
 Triggered by EventBridge whenever the managed EC2 transitions to 'running'.
-Reads the instance's current public IP via DescribeInstances and upserts
-the Route53 A record that CloudFront uses as its primary origin.
-
-Why this matters:
-  We don't pay for an Elastic IP, so the EC2 gets a new public IP every
-  start. CloudFront's primary origin is a hostname that resolves via this
-  A record, so the DNS must always point to the *current* IP.
-
-Environment variables:
-  INSTANCE_ID    — EC2 instance to read from (required)
-  HOSTED_ZONE_ID — Route53 hosted zone ID where we maintain the record
-  RECORD_NAME    — full DNS name we manage (e.g. origin.app-aws.example.com)
-
-IAM permissions (set in Terraform):
-  ec2:DescribeInstances
-  route53:ChangeResourceRecordSets   on the specific zone
-  route53:GetChange                  for status checks
 """
 
 import os
@@ -28,11 +20,9 @@ from typing import Any
 import boto3
 
 ec2 = boto3.client("ec2")
-route53 = boto3.client("route53")
 
 INSTANCE_ID = os.environ["INSTANCE_ID"]
-HOSTED_ZONE_ID = os.environ["HOSTED_ZONE_ID"]
-RECORD_NAME = os.environ["RECORD_NAME"]
+MODE = os.environ.get("MODE", "route53")
 
 
 def get_public_ip() -> str | None:
@@ -40,39 +30,65 @@ def get_public_ip() -> str | None:
     return resp["Reservations"][0]["Instances"][0].get("PublicIpAddress")
 
 
-def upsert_a_record(ip: str) -> str:
-    """UPSERT means "create or replace", so this is idempotent."""
+# ─── Route53 mode ───────────────────────────────────────────────────────────
+
+def update_route53(ip: str) -> dict[str, Any]:
+    route53 = boto3.client("route53")
+    zone_id = os.environ["HOSTED_ZONE_ID"]
+    record = os.environ["RECORD_NAME"]
     resp = route53.change_resource_record_sets(
-        HostedZoneId=HOSTED_ZONE_ID,
+        HostedZoneId=zone_id,
         ChangeBatch={
             "Comment": "EC2 IP refresh (scale-to-zero)",
-            "Changes": [
-                {
-                    "Action": "UPSERT",
-                    "ResourceRecordSet": {
-                        "Name": RECORD_NAME,
-                        "Type": "A",
-                        # Low TTL so CloudFront re-resolves quickly after
-                        # an IP change. We still get the speed benefit on
-                        # subsequent requests.
-                        "TTL": 60,
-                        "ResourceRecords": [{"Value": ip}],
-                    },
-                }
-            ],
+            "Changes": [{
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                    "Name": record,
+                    "Type": "A",
+                    "TTL": 60,
+                    "ResourceRecords": [{"Value": ip}],
+                },
+            }],
         },
     )
-    return resp["ChangeInfo"]["Id"]
+    return {"status": "ok", "mode": "route53", "ip": ip, "changeId": resp["ChangeInfo"]["Id"]}
 
+
+# ─── CloudFront mode ────────────────────────────────────────────────────────
+
+def update_cloudfront(ip: str) -> dict[str, Any]:
+    cf = boto3.client("cloudfront")
+    dist_id = os.environ["DISTRIBUTION_ID"]
+    origin_id = os.environ["ORIGIN_ID"]
+
+    # CloudFront doesn't allow raw IPs. Use sslip.io wildcard DNS.
+    new_domain = ip.replace(".", "-") + ".sslip.io"
+
+    # Get current config
+    resp = cf.get_distribution_config(Id=dist_id)
+    config = resp["DistributionConfig"]
+    etag = resp["ETag"]
+
+    # Find and update our origin
+    for origin in config["Origins"]["Items"]:
+        if origin["Id"] == origin_id:
+            old_domain = origin["DomainName"]
+            if old_domain == new_domain:
+                return {"status": "unchanged", "mode": "cloudfront", "ip": ip}
+            origin["DomainName"] = new_domain
+            break
+
+    cf.update_distribution(Id=dist_id, DistributionConfig=config, IfMatch=etag)
+    return {"status": "ok", "mode": "cloudfront", "ip": ip, "domain": new_domain, "old": old_domain}
+
+
+# ─── Handler ────────────────────────────────────────────────────────────────
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """
-    Triggered by EventBridge with an EC2 state-change event:
-      { "detail": { "instance-id": "...", "state": "running" }, ... }
-    """
     ip = get_public_ip()
     if not ip:
         return {"status": "skipped", "reason": "no public IP yet"}
 
-    change_id = upsert_a_record(ip)
-    return {"status": "ok", "ip": ip, "changeId": change_id}
+    if MODE == "cloudfront":
+        return update_cloudfront(ip)
+    return update_route53(ip)
