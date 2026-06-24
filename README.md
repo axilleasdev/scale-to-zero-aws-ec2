@@ -141,3 +141,4 @@ Issues and PRs are welcome. Especially:
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
+
