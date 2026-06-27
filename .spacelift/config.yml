@@ -1,0 +1,11 @@
+version: "1"
+
+module_version: "0.2.0"
+
+tests:
+  - name: "Full deployment"
+    project_root: tests/spacelift
+    after_apply:
+      - echo "Waiting for EC2 boot + app startup..."
+      - sleep 120
+      - "curl -sf $(terraform output -raw url) | grep -q '/vote' && echo 'PASS: app is live' || (echo 'FAIL: app not ready' && exit 1)"
