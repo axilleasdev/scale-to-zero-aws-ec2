@@ -5,3 +5,7 @@ module_version: "0.2.0"
 tests:
   - name: "Full deployment"
     project_root: tests/spacelift
+    after_apply:
+      - echo "Waiting for CloudFront + EC2 boot..."
+      - sleep 90
+      - "curl -sf $(terraform output -raw url) | grep -q '<html' && echo 'PASS: site responds' || (echo 'FAIL: site not reachable' && exit 1)"
