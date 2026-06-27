@@ -3,20 +3,22 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [VERSION, .spacelift/config.yml]
+    paths: [.spacelift/config.yml]
 
 jobs:
   tag:
-    name: Create git tag from VERSION
+    name: Create git tag from module_version
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read version
+      - name: Read version from .spacelift/config.yml
         id: version
-        run: echo "version=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(grep 'module_version' .spacelift/config.yml | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create tag (if not exists)
         run: |
