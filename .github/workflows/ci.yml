@@ -20,18 +20,8 @@ jobs:
       - name: Format check
         run: terraform fmt -check -recursive
 
-      - name: Init (module)
-        run: terraform init -backend=false
-
-      - name: Validate (module)
-        run: terraform validate
-
-      - name: Init (example)
-        run: terraform init -backend=false
-        working-directory: examples/complete
-
-      - name: Validate (example)
-        run: terraform validate
+      - name: Init & Validate (via example)
+        run: terraform init -backend=false && terraform validate
         working-directory: examples/complete
 
   python:
