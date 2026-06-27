@@ -1,0 +1,5 @@
+version: "1"
+
+module_tests:
+  - name: "Full deployment"
+    project_root: tests/spacelift
