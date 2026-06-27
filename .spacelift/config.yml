@@ -6,6 +6,6 @@ tests:
   - name: "Full deployment"
     project_root: tests/spacelift
     after_apply:
-      - echo "Waiting for CloudFront + EC2 boot..."
-      - sleep 90
-      - "curl -sf $(terraform output -raw url) | grep -q '<html' && echo 'PASS: site responds' || (echo 'FAIL: site not reachable' && exit 1)"
+      - echo "Waiting for EC2 boot + app startup..."
+      - sleep 120
+      - "curl -sf $(terraform output -raw url) | grep -q '/vote' && echo 'PASS: app is live' || (echo 'FAIL: app not ready' && exit 1)"
