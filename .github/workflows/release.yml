@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION, .spacelift/config.yml]
+
+jobs:
+  tag:
+    name: Create git tag from VERSION
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "version=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag (if not exists)
+        run: |
+          git fetch --tags
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.version.outputs.version }} already exists, skipping."
+          else
+            git tag "${{ steps.version.outputs.version }}"
+            git push origin "${{ steps.version.outputs.version }}"
+            echo "Created tag ${{ steps.version.outputs.version }}"
+          fi
