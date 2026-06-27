@@ -8,8 +8,8 @@
 
 data "archive_file" "router" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/router"
-  output_path = "${path.module}/../lambda/router.zip"
+  source_dir  = "${path.module}/lambda/router"
+  output_path = "${path.module}/lambda/router.zip"
 }
 
 resource "aws_iam_role" "router" {

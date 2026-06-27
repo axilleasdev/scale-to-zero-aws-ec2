@@ -10,9 +10,6 @@ jobs:
   terraform:
     name: Terraform checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +20,19 @@ jobs:
       - name: Format check
         run: terraform fmt -check -recursive
 
-      - name: Init
+      - name: Init (module)
         run: terraform init -backend=false
 
-      - name: Validate
+      - name: Validate (module)
         run: terraform validate
+
+      - name: Init (example)
+        run: terraform init -backend=false
+        working-directory: examples/complete
+
+      - name: Validate (example)
+        run: terraform validate
+        working-directory: examples/complete
 
   python:
     name: Python lint & test

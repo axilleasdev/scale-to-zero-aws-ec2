@@ -94,12 +94,39 @@ If those matter, you probably want App Runner or Fargate, not this.
 
 ## Quick start
 
+### As a Terraform module (recommended)
+
+```hcl
+module "scale_to_zero" {
+  source = "github.com/axilleasdev/scale-to-zero-aws-ec2"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name_prefix = "myapp"
+  app_port    = 8080
+
+  # Optional: custom domain
+  # public_domain    = "app.example.com"
+  # origin_subdomain = "origin.app-aws.example.com"
+  # origin_zone_name = "app-aws.example.com"
+}
+```
+
+```bash
+terraform init
+terraform apply
+```
+
+See [`examples/complete/`](examples/complete/) for a full working example.
+
+### From source
+
 ```bash
 git clone https://github.com/axilleasdev/scale-to-zero-aws-ec2.git
-cd scale-to-zero-aws-ec2/terraform
-
-cp terraform.tfvars.example terraform.tfvars
-# … edit terraform.tfvars …
+cd scale-to-zero-aws-ec2/examples/complete
 
 terraform init
 terraform apply
@@ -114,11 +141,13 @@ Step-by-step walkthrough in [`docs/setup.md`](docs/setup.md).
 
 ```
 scale-to-zero-aws-ec2/
-├── terraform/        # All AWS infrastructure (variabilized)
+├── *.tf              # Terraform module (root)
 ├── lambda/           # Python source for the 3 control-plane Lambdas
+├── examples/         # Working examples
+│   ├── complete/     # Full deployment using the module
+│   └── cats-vs-dogs/ # Sample voting app (Python + SQLite + Tailwind)
+├── tests/            # Unit tests for Lambda handlers
 ├── docs/             # Architecture, cost analysis, setup guide
-├── examples/         # Sample apps you can deploy as the workload
-│   └── cats-vs-dogs/ # Voting app (Python + SQLite + Tailwind)
 └── LICENSE
 ```
 

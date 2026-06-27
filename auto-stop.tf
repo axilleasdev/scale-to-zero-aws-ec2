@@ -8,8 +8,8 @@
 
 data "archive_file" "auto_stop" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/auto-stop"
-  output_path = "${path.module}/../lambda/auto-stop.zip"
+  source_dir  = "${path.module}/lambda/auto-stop"
+  output_path = "${path.module}/lambda/auto-stop.zip"
 }
 
 resource "aws_iam_role" "auto_stop" {
