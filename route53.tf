@@ -44,8 +44,8 @@ resource "aws_route53_record" "origin" {
 
 data "archive_file" "dns_updater" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/dns-updater"
-  output_path = "${path.module}/../lambda/dns-updater.zip"
+  source_dir  = "${path.module}/lambda/dns-updater"
+  output_path = "${path.module}/lambda/dns-updater.zip"
 }
 
 resource "aws_iam_role" "dns_updater" {
