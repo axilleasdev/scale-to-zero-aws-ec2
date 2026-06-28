@@ -54,13 +54,16 @@ resource "aws_security_group" "ec2" {
     create_before_destroy = true
   }
 
-  ingress {
-    description      = "App port"
-    from_port        = var.app_port
-    to_port          = var.app_port
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+  dynamic "ingress" {
+    for_each = local.effective_apps
+    content {
+      description      = "${ingress.key} (port ${ingress.value.port})"
+      from_port        = ingress.value.port
+      to_port          = ingress.value.port
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+    }
   }
 
   egress {
