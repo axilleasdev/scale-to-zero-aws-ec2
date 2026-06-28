@@ -48,6 +48,29 @@ module "scale_to_zero" {
 }
 ```
 
+### Multiple apps on one EC2
+
+Run several apps on different ports — each gets its own CloudFront URL:
+
+```hcl
+module "scale_to_zero" {
+  source = "github.com/axilleasdev/scale-to-zero-aws-ec2"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name_prefix = "mystack"
+
+  apps = {
+    website = { port = 8080 }
+    api     = { port = 8081 }
+    admin   = { port = 8082, domain = "admin.example.com" }
+  }
+}
+```
+
 ### Option 2: Clone and deploy
 
 ```bash
@@ -69,9 +92,10 @@ That's it. You'll get a CloudFront URL that serves your app.
 | Name | Default | Description |
 |------|---------|-------------|
 | `name_prefix` | `"ondemand"` | Prefix for all resource names |
-| `app_port` | `8080` | Port your app listens on |
+| `app_port` | `8080` | Port your app listens on (single-app mode) |
+| `apps` | `{}` | Map of apps with port + optional domain (multi-app mode) |
 | `instance_type` | `"t4g.small"` | EC2 instance type |
-| `public_domain` | `""` | Custom domain (optional) |
+| `public_domain` | `""` | Custom domain — single-app mode only |
 | `auto_stop_idle_window_min` | `15` | Minutes of idle before stopping |
 | `api_throttle_rate` | `5` | Max requests/sec to API Gateway (DDoS protection) |
 | `api_throttle_burst` | `20` | Max burst requests above the rate limit |
