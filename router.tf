@@ -126,6 +126,14 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  # Throttle to stay within free tier even under sustained attack.
+  # 5 req/sec sustained = max ~13M/month, but in practice Lambda only
+  # runs when EC2 is down (failover), so real usage stays well below 1M.
+  default_route_settings {
+    throttling_burst_limit = var.api_throttle_burst
+    throttling_rate_limit  = var.api_throttle_rate
+  }
+
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api.arn
     format = jsonencode({

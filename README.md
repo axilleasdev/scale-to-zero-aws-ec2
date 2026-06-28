@@ -1,100 +1,38 @@
 # scale-to-zero-aws-ec2
 
-> Run a real web app on AWS for **~$1/month**. The EC2 sleeps when no one
-> is around and wakes up automatically when a visitor arrives — without
-> losing the URL or any persistent data.
+> Run any web app on AWS for **~$1/month**. Your EC2 sleeps when nobody visits and wakes up automatically when someone does.
 
-This is **not** Lambda or App Runner. It's a regular EC2 with Docker (or
-whatever you want), fronted by CloudFront, that turns itself off when
-idle. The control plane (~3 small Lambda functions and a couple of
-EventBridge rules) handles wake-up, DNS bookkeeping, and idle detection.
+No URL changes. No data loss. No rewriting your app.
 
-[![Terraform](https://img.shields.io/badge/Terraform-%E2%89%A51.0-7B42BC)](https://www.terraform.io/)
-[![AWS](https://img.shields.io/badge/AWS-eu--central--1-FF9900)](https://aws.amazon.com/)
+[![Terraform](https://img.shields.io/badge/Terraform-%E2%89%A51.5-7B42BC)](https://www.terraform.io/)
+[![AWS](https://img.shields.io/badge/AWS-EC2+CloudFront+Lambda-FF9900)](https://aws.amazon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/axilleasdev/scale-to-zero-aws-ec2/actions/workflows/ci.yml/badge.svg)](https://github.com/axilleasdev/scale-to-zero-aws-ec2/actions)
 
-## Why?
+---
 
-A small web app that takes ~5 visitors per day shouldn't cost more than a
-coffee per year. But you also don't want to:
+## How it works
 
-- Rewrite your PHP / Rails / Django app to run on Lambda.
-- Pay for an Application Load Balancer ($16/mo) just to forward requests.
-- Keep an EC2 running 24/7 ($6-15/mo) when it's idle 95% of the time.
-- Lose your URL bookmarks every time the instance restarts.
-
-This stack runs your **unmodified** containerized app on EC2, but only
-when someone actually wants to use it.
-
-## Architecture
-
-```mermaid
-flowchart LR
-    V([👤 Visitor])
-    CFL[Cloudflare<br/>DNS + DDoS]
-    CF[CloudFront<br/>CDN + TLS]
-    EC2[("EC2<br/>your app")]
-    APIGW[API Gateway]
-    L1[Lambda<br/>router]
-    L2[Lambda<br/>DNS updater]
-    L3[Lambda<br/>auto-stop]
-    R53[Route53]
-    EB[EventBridge]
-
-    V --> CFL --> CF
-    CF -- primary --> EC2
-    CF -. failover .-> APIGW --> L1
-    L1 -- "start &<br/>proxy" --> EC2
-    EC2 -. "running" .-> EB --> L2 -- update --> R53
-    EB -. every 5 min .-> L3 -- "stop if idle" --> EC2
-    R53 -. "current IP" .-> CF
+```
+Visitor → CloudFront → EC2 (if awake) ✓ fast response
+                     → Lambda (if asleep) → starts EC2 → "loading..." page → auto-refreshes
 ```
 
-Full diagrams (cold-start sequence, auto-stop loop) live in
-[`docs/architecture.md`](docs/architecture.md).
+- **No visitors for 5 min?** → EC2 stops automatically (saves money)
+- **New visitor arrives?** → EC2 starts, app loads in 15-40 seconds
+- **EC2 gets a new IP?** → Lambda updates CloudFront origin automatically
 
-## Costs
+## Cost comparison
 
-For a site with a handful of daily visitors:
-
-| Component               | Monthly |
-| ----------------------- | ------: |
-| EBS root + data (12 GB) | $0.96 |
-| Route53 zone            | $0.50 |
-| EC2 compute (≈15 h/mo)  | $0.13 |
-| CloudFront / API GW     | $0 (free tier) |
-| Lambda × 3              | $0 (free tier) |
-| Elastic IP              | $0 (not needed!) |
-| **Total**               | **~$1.6/mo** |
-
-> 💡 A typical always-on setup (EC2 24/7 + Elastic IP + ALB) costs
-> **$25-40/month** for the same workload. This stack is **95% cheaper**.
-
-A 24-hour bot flood (~1.4 M requests) adds about **$1-3** thanks to
-CloudFront caching and the loading page absorbing repeats. Numbers and
-math in [`docs/cost-analysis.md`](docs/cost-analysis.md).
-
-## What you get
-
-- **No URL changes**: visitors always see the same `https://app.example.com`
-- **No Elastic IP needed**: saves ~$3.65/month — Route53 + Lambda handle the dynamic IP automatically
-- **Persistent data**: EBS data volume survives stop/start (no data loss between sessions)
-- **HTTPS by default**: CloudFront + ACM, free
-- **Sane bot defense**: Cloudflare in front, CloudFront cache, AWS Budget alarm
-- **One-command deploy**: `terraform apply`
-- **No SSH keys to manage**: SSM Session Manager (with optional SSH-over-SSM)
-
-## What you don't get
-
-- Sub-second cold starts (the EC2 takes ~30-60 s to boot)
-- Latency below the CloudFront round-trip on cache misses
-- Stateful per-instance things (the IP changes on every start)
-
-If those matter, you probably want App Runner or Fargate, not this.
+| Setup | Monthly cost |
+|-------|-------------|
+| **This module** (EC2 runs ~15h/month) | **~$1.60** |
+| EC2 always-on + ALB | ~$30 |
+| App Runner (min instances) | ~$7 |
 
 ## Quick start
 
-### As a Terraform module (recommended)
+### Option 1: Use as Terraform module
 
 ```hcl
 module "scale_to_zero" {
@@ -107,66 +45,129 @@ module "scale_to_zero" {
 
   name_prefix = "myapp"
   app_port    = 8080
-
-  # Optional: custom domain
-  # public_domain    = "app.example.com"
-  # origin_subdomain = "origin.app-aws.example.com"
-  # origin_zone_name = "app-aws.example.com"
 }
 ```
 
-```bash
-terraform init
-terraform apply
-```
-
-See [`examples/complete/`](examples/complete/) for a full working example.
-
-### From source
+### Option 2: Clone and deploy
 
 ```bash
 git clone https://github.com/axilleasdev/scale-to-zero-aws-ec2.git
 cd scale-to-zero-aws-ec2/examples/complete
-
-terraform init
-terraform apply
+terraform init && terraform apply
 ```
 
-The EC2 user-data script automatically deploys the demo app
-(`examples/cats-vs-dogs`) on first boot — no manual SSH/SSM needed.
+That's it. You'll get a CloudFront URL that serves your app.
 
-Step-by-step walkthrough in [`docs/setup.md`](docs/setup.md).
+## What you need
 
-## Repository layout
+- AWS account
+- Terraform >= 1.5
+- A containerized app (Docker Compose) listening on a port
+
+## Variables
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `name_prefix` | `"ondemand"` | Prefix for all resource names |
+| `app_port` | `8080` | Port your app listens on |
+| `instance_type` | `"t4g.small"` | EC2 instance type |
+| `public_domain` | `""` | Custom domain (optional) |
+| `auto_stop_idle_window_min` | `15` | Minutes of idle before stopping |
+| `api_throttle_rate` | `5` | Max requests/sec to API Gateway (DDoS protection) |
+| `api_throttle_burst` | `20` | Max burst requests above the rate limit |
+
+Full list in [`variables.tf`](variables.tf).
+
+## DDoS protection
+
+The module includes built-in API Gateway throttling to limit cost exposure under attack. The Lambda router only runs when EC2 is down (failover), and throttling caps how many requests reach it per second.
+
+```hcl
+module "scale_to_zero" {
+  # ...
+  api_throttle_rate  = 2   # stricter: ~$2/mo max under sustained attack
+  api_throttle_burst = 10
+}
+```
+
+For additional protection, put Cloudflare (free) in front of your CloudFront URL.
+
+## Custom domain (optional)
+
+If you want `app.example.com` instead of a CloudFront URL:
+
+```hcl
+module "scale_to_zero" {
+  source = "github.com/axilleasdev/scale-to-zero-aws-ec2"
+
+  # ...
+  public_domain    = "app.example.com"
+  origin_subdomain = "origin.app-aws.example.com"
+  origin_zone_name = "app-aws.example.com"
+}
+```
+
+This creates a Route53 zone + ACM certificate. You'll need to add NS records and a validation CNAME at your DNS provider.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    V([Visitor]) --> CF[CloudFront]
+    CF -- "EC2 up" --> EC2[EC2 + Docker]
+    CF -. "EC2 down" .-> APIGW[API Gateway] --> Router[Lambda Router]
+    Router -- "start + show loading" --> EC2
+    EB[EventBridge] -. "every 5 min" .-> AutoStop[Lambda Auto-Stop]
+    AutoStop -- "stop if idle" --> EC2
+    EB2[EventBridge] -. "EC2 started" .-> DNS[Lambda DNS Updater]
+    DNS -- "update origin IP" --> CF
+```
+
+## What's included
+
+- **CloudFront** — CDN + HTTPS + failover to Lambda when EC2 is down
+- **EC2** — your app runs here (Docker Compose)
+- **EBS volume** — persistent data survives stop/start
+- **3 Lambda functions:**
+  - Router: wakes EC2 + shows loading page
+  - Auto-stop: stops EC2 when idle
+  - DNS updater: updates CloudFront origin when EC2 gets new IP
+- **EventBridge** — triggers auto-stop (every 5 min) and DNS update (on EC2 start)
+- **API Gateway** — entrypoint for the router Lambda
+
+## Repo layout
 
 ```
-scale-to-zero-aws-ec2/
-├── *.tf              # Terraform module (root)
-├── lambda/           # Python source for the 3 control-plane Lambdas
-├── examples/         # Working examples
-│   ├── complete/     # Full deployment using the module
-│   └── cats-vs-dogs/ # Sample voting app (Python + SQLite + Tailwind)
-├── tests/            # Unit tests for Lambda handlers
-├── docs/             # Architecture, cost analysis, setup guide
-└── LICENSE
+├── *.tf              # Terraform module (use this as source)
+├── lambda/           # Python handlers for the 3 Lambdas
+├── examples/
+│   ├── complete/     # Full working deployment example
+│   └── cats-vs-dogs/ # Demo voting app (Python + SQLite)
+├── tests/            # Unit tests + Spacelift integration test
+└── .github/          # CI pipeline (lint + validate)
 ```
 
-## Status
+## FAQ
 
-Battle-tested on a real-world deployment for a side project (a PHP/MySQL
-web app). The pattern itself is straightforward but assembling all
-the AWS bits without breaking anything took a couple of weekends — this
-repo is the tidy version of that.
+**Q: How long does cold start take?**
+15-40 seconds. The loading page auto-refreshes until the app is ready.
+
+**Q: What happens to my data when EC2 stops?**
+Nothing — the EBS data volume persists. It remounts on next start.
+
+**Q: Can I use any app?**
+Yes, anything that runs in Docker and listens on a port.
+
+**Q: Do I need a custom domain?**
+No. Without one, you get a CloudFront URL (e.g. `d1234.cloudfront.net`).
 
 ## Contributing
 
-Issues and PRs are welcome. Especially:
-
-- Other workload examples (Node, Python, Go web apps)
-- Tightening the security model (`X-Origin-Auth` header verification,
-  CloudFront-IP-only Security Group rotator)
-- A `terraform module` packaging that lets you bring your own VPC
+PRs welcome! Especially:
+- More example apps (Node, Go, Rails)
+- Security improvements
+- Documentation
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT
