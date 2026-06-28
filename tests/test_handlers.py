@@ -62,7 +62,7 @@ class TestDnsUpdater:
     def test_cloudfront_mode_updates_origin(self, monkeypatch):
         monkeypatch.setenv("INSTANCE_ID", "i-test123")
         monkeypatch.setenv("MODE", "cloudfront")
-        monkeypatch.setenv("DISTRIBUTION_ID", "EXXXTEST")
+        monkeypatch.setenv("DISTRIBUTION_IDS", "EXXXTEST")
         monkeypatch.setenv("ORIGIN_ID", "origin-ec2")
 
         import sys
@@ -105,7 +105,7 @@ class TestDnsUpdater:
     def test_cloudfront_mode_skips_when_unchanged(self, monkeypatch):
         monkeypatch.setenv("INSTANCE_ID", "i-test123")
         monkeypatch.setenv("MODE", "cloudfront")
-        monkeypatch.setenv("DISTRIBUTION_ID", "EXXXTEST")
+        monkeypatch.setenv("DISTRIBUTION_IDS", "EXXXTEST")
         monkeypatch.setenv("ORIGIN_ID", "origin-ec2")
 
         import sys
@@ -134,5 +134,6 @@ class TestDnsUpdater:
         with patch("boto3.client", return_value=mock_cf):
             result = handler.update_cloudfront("1.2.3.4")
 
-        assert result["status"] == "unchanged"
+        assert result["status"] == "ok"
+        assert result["results"][0]["status"] == "unchanged"
         mock_cf.update_distribution.assert_not_called()
