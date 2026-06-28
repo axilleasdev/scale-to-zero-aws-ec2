@@ -34,6 +34,7 @@ module "scale_to_zero" {
   }
 
   name_prefix = "demo"
+  deploy_mode = "demo"
   app_port    = 8080
 
   # Optional: custom domain

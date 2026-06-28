@@ -25,6 +25,7 @@ module "test" {
   }
 
   name_prefix = "ci"
+  deploy_mode = "demo"
 
   apps = {
     app1 = { port = 8080 }

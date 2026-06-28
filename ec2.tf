@@ -145,17 +145,33 @@ resource "aws_instance" "app" {
 
     chown -R ubuntu:ubuntu /mnt/data
 
-    # Deploy the demo app
     APP_DIR="/home/ubuntu/app"
-    if [ ! -d "$APP_DIR" ]; then
+    mkdir -p "$APP_DIR"
+
+    %{if var.deploy_mode == "demo"}
+    # Deploy the demo app (cats-vs-dogs)
+    if [ ! -f "$APP_DIR/docker-compose.yml" ]; then
       git clone https://github.com/axilleasdev/scale-to-zero-aws-ec2.git /tmp/repo
-      cp -r /tmp/repo/examples/cats-vs-dogs "$APP_DIR"
-      chown -R ubuntu:ubuntu "$APP_DIR"
+      cp -r /tmp/repo/examples/cats-vs-dogs/* "$APP_DIR/"
       rm -rf /tmp/repo
     fi
+    chown -R ubuntu:ubuntu "$APP_DIR"
+    cd "$APP_DIR" && docker compose up -d
+    %{endif}
 
-    cd "$APP_DIR"
-    docker compose up -d
+    %{if var.deploy_mode == "custom"}
+    # Deploy custom docker-compose
+    cat > "$APP_DIR/docker-compose.yml" << 'COMPOSE'
+    ${var.docker_compose_content}
+    COMPOSE
+    chown -R ubuntu:ubuntu "$APP_DIR"
+    cd "$APP_DIR" && docker compose up -d
+    %{endif}
+
+    %{if var.extra_boot_script != ""}
+    # Extra boot script
+    ${var.extra_boot_script}
+    %{endif}
   EOF
 
   metadata_options {

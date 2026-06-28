@@ -99,8 +99,30 @@ That's it. You'll get a CloudFront URL that serves your app.
 | `auto_stop_idle_window_min` | `15` | Minutes of idle before stopping |
 | `api_throttle_rate` | `5` | Max requests/sec to API Gateway (DDoS protection) |
 | `api_throttle_burst` | `20` | Max burst requests above the rate limit |
+| `deploy_mode` | `"none"` | `none`, `demo` (cats-vs-dogs), or `custom` (your docker-compose) |
+| `docker_compose_content` | `""` | Your docker-compose.yml content (when deploy_mode = custom) |
+| `extra_boot_script` | `""` | Extra shell commands to run after boot |
 
 Full list in [`variables.tf`](variables.tf).
+
+## App deployment
+
+Three modes for deploying your app on the EC2:
+
+```hcl
+# None — EC2 boots with Docker ready, you deploy manually via SSM
+deploy_mode = "none"
+
+# Demo — deploys the included cats-vs-dogs voting app
+deploy_mode = "demo"
+
+# Custom — provide your own docker-compose.yml
+deploy_mode = "custom"
+docker_compose_content = file("./docker-compose.yml")
+
+# Optional: run extra commands after boot
+extra_boot_script = "echo 'hello' > /tmp/ready"
+```
 
 ## DDoS protection
 
