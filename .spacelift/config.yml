@@ -1,6 +1,6 @@
 version: "1"
 
-module_version: "0.5.1"
+module_version: "0.5.2"
 
 tests:
   - name: "Demo + Custom deploy modes"

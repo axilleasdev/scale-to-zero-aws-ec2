@@ -1,5 +1,6 @@
 locals {
-  use_custom_domain = var.public_domain != ""
+  # Route53 zone is used when origin_zone_name is explicitly provided OR public_domain is set
+  use_custom_domain = var.origin_zone_name != "" || var.public_domain != ""
 
   # Multi-app: use var.apps if provided, otherwise single-app from var.app_port
   effective_apps = length(var.apps) > 0 ? var.apps : {
