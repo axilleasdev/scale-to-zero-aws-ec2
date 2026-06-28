@@ -60,9 +60,18 @@ variable "data_volume_size_gb" {
 }
 
 variable "app_port" {
-  description = "Port your container app listens on. CloudFront and the router Lambda will hit the EC2 on this port."
+  description = "Port your container app listens on. Used when 'apps' is not set (single-app mode)."
   type        = number
   default     = 8080
+}
+
+variable "apps" {
+  description = "Map of apps to deploy on this EC2. Each gets its own CloudFront. If empty, a single app is created using app_port."
+  type = map(object({
+    port   = number
+    domain = optional(string, "")
+  }))
+  default = {}
 }
 
 variable "auto_stop_idle_window_min" {

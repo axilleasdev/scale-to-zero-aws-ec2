@@ -104,7 +104,7 @@ resource "aws_iam_role_policy" "dns_updater" {
           Sid      = "UpdateCloudFrontOrigin"
           Effect   = "Allow"
           Action   = ["cloudfront:GetDistribution", "cloudfront:GetDistributionConfig", "cloudfront:UpdateDistribution"]
-          Resource = aws_cloudfront_distribution.main.arn
+          Resource = [for d in aws_cloudfront_distribution.app : d.arn]
         },
       ],
     )
@@ -132,9 +132,9 @@ resource "aws_lambda_function" "dns_updater" {
         HOSTED_ZONE_ID = aws_route53_zone.origin[0].zone_id
         RECORD_NAME    = aws_route53_record.origin[0].name
         } : {
-        MODE            = "cloudfront"
-        DISTRIBUTION_ID = aws_cloudfront_distribution.main.id
-        ORIGIN_ID       = "origin-ec2"
+        MODE             = "cloudfront"
+        DISTRIBUTION_IDS = join(",", [for d in aws_cloudfront_distribution.app : d.id])
+        ORIGIN_ID        = "origin-ec2"
       },
     )
   }

@@ -25,9 +25,13 @@ module "test" {
   }
 
   name_prefix = "ci"
-  app_port    = 8080
+
+  apps = {
+    app1 = { port = 8080 }
+    app2 = { port = 8081 }
+  }
 }
 
-output "url" {
+output "urls" {
   value = module.test.public_url
 }

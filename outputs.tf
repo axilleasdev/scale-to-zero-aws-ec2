@@ -29,13 +29,15 @@ output "api_gateway_endpoint" {
 }
 
 output "cloudfront_domain" {
-  description = "CloudFront distribution domain. Point your public_domain CNAME here."
-  value       = aws_cloudfront_distribution.main.domain_name
+  description = "CloudFront distribution domain(s) per app."
+  value       = { for k, v in aws_cloudfront_distribution.app : k => v.domain_name }
 }
 
 output "public_url" {
-  description = "Final public URL. If using a custom domain, point its CNAME to cloudfront_domain."
-  value       = local.use_custom_domain ? "https://${var.public_domain}" : "https://${aws_cloudfront_distribution.main.domain_name}"
+  description = "Public URL(s) per app."
+  value = { for k, v in local.effective_apps : k =>
+    v.domain != "" ? "https://${v.domain}" : "https://${aws_cloudfront_distribution.app[k].domain_name}"
+  }
 }
 
 output "route53_nameservers" {
@@ -49,15 +51,14 @@ output "origin_record_name" {
 }
 
 output "acm_validation_record" {
-  description = "ADD THIS in your DNS provider so ACM can validate the certificate. Only needed with a custom domain."
-  value = local.use_custom_domain ? {
-    for dvo in aws_acm_certificate.public[0].domain_validation_options :
-    dvo.domain_name => {
+  description = "ACM validation records per app — add these at your DNS provider."
+  value = { for k, cert in aws_acm_certificate.app : k => {
+    for dvo in cert.domain_validation_options : dvo.domain_name => {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
       value = dvo.resource_record_value
     }
-  } : {}
+  } }
 }
 
 output "router_function_name" {

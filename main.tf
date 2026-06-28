@@ -1,6 +1,11 @@
 locals {
   use_custom_domain = var.public_domain != ""
 
+  # Multi-app: use var.apps if provided, otherwise single-app from var.app_port
+  effective_apps = length(var.apps) > 0 ? var.apps : {
+    default = { port = var.app_port, domain = var.public_domain }
+  }
+
   # With custom domain: use a public delegated Route53 zone (like make-iac-great).
   # Without: skip Route53, use EC2 public IP directly as CloudFront origin.
   origin_zone_name = var.origin_zone_name != "" ? var.origin_zone_name : "${var.name_prefix}-origin.internal"

@@ -46,6 +46,18 @@ HEALTH_PATH = os.environ.get("HEALTH_PATH", "/")
 HEALTH_TIMEOUT = float(os.environ.get("HEALTH_TIMEOUT", "2"))
 PROXY_TIMEOUT = float(os.environ.get("PROXY_TIMEOUT", "25"))
 
+
+def get_app_port(event: dict) -> str:
+    """Read app port from X-App-Port header (set by CloudFront) or env var."""
+    headers = event.get("headers") or {}
+    return headers.get("x-app-port", APP_PORT)
+
+
+def get_app_name(event: dict) -> str:
+    """Read app name from X-App-Name header (set by CloudFront) or env var."""
+    headers = event.get("headers") or {}
+    return headers.get("x-app-name", APP_NAME)
+
 # Hop-by-hop headers (RFC 7230 §6.1) and others we must not forward.
 HOP_BY_HOP = {
     "connection",
@@ -77,8 +89,8 @@ def start_instance() -> None:
     ec2.start_instances(InstanceIds=[INSTANCE_ID])
 
 
-def app_is_ready(ip: str) -> bool:
-    url = f"http://{ip}:{APP_PORT}{HEALTH_PATH}"
+def app_is_ready(ip: str, port: str) -> bool:
+    url = f"http://{ip}:{port}{HEALTH_PATH}"
     try:
         with urllib.request.urlopen(url, timeout=HEALTH_TIMEOUT) as resp:
             return resp.status < 600
@@ -93,11 +105,11 @@ def is_text_content(content_type: str) -> bool:
     return any(ct.startswith(p) for p in TEXT_PREFIXES)
 
 
-def proxy_request(event: dict[str, Any], ip: str) -> dict[str, Any]:
+def proxy_request(event: dict[str, Any], ip: str, port: str) -> dict[str, Any]:
     method = event["requestContext"]["http"]["method"]
     path = event.get("rawPath", "/")
     query = event.get("rawQueryString", "")
-    target = f"http://{ip}:{APP_PORT}{path}"
+    target = f"http://{ip}:{port}{path}"
     if query:
         target = f"{target}?{query}"
 
@@ -106,7 +118,7 @@ def proxy_request(event: dict[str, Any], ip: str) -> dict[str, Any]:
         for k, v in (event.get("headers") or {}).items()
         if k.lower() not in HOP_BY_HOP
     }
-    headers["host"] = f"{ip}:{APP_PORT}"
+    headers["host"] = f"{ip}:{port}"
 
     body_bytes: bytes | None = None
     raw_body = event.get("body")
@@ -188,7 +200,7 @@ def _build_response(resp: Any) -> dict[str, Any]:
     }
 
 
-def loading_page_html(state: str) -> str:
+def loading_page_html(state: str, app_name: str = "App") -> str:
     state_msg = {
         "stopped": "Starting the server…",
         "pending": "Server is booting…",
@@ -202,7 +214,7 @@ def loading_page_html(state: str) -> str:
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="5">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{APP_NAME} — loading</title>
+<title>{app_name} — loading</title>
 <style>
   :root {{ color-scheme: light dark; }}
   body {{
@@ -239,7 +251,7 @@ def loading_page_html(state: str) -> str:
 <body>
   <div class="card">
     <div class="spinner"></div>
-    <h1>{APP_NAME}</h1>
+    <h1>{app_name}</h1>
     <p>{state_msg}</p>
     <p>This usually takes about 15–40 seconds.</p>
     <p class="small">This page will refresh automatically.</p>
@@ -263,23 +275,26 @@ def html_response(status_code: int, body: str) -> dict[str, Any]:
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+    port = get_app_port(event)
+    app_name = get_app_name(event)
+
     info = describe_instance()
     state = info["state"]
     public_ip = info["public_ip"]
 
-    if state == "running" and public_ip and app_is_ready(public_ip):
-        return proxy_request(event, public_ip)
+    if state == "running" and public_ip and app_is_ready(public_ip, port):
+        return proxy_request(event, public_ip, port)
 
     if state == "running":
-        return html_response(200, loading_page_html("warming_up"))
+        return html_response(200, loading_page_html("warming_up", app_name))
 
     if state in ("stopped", "stopping"):
         if state == "stopped":
             start_instance()
-        return html_response(200, loading_page_html(state))
+        return html_response(200, loading_page_html(state, app_name))
 
     if state == "pending":
-        return html_response(200, loading_page_html(state))
+        return html_response(200, loading_page_html(state, app_name))
 
     return html_response(
         503,
