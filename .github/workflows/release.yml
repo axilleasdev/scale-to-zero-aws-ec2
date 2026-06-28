@@ -6,27 +6,31 @@ on:
     paths: [.spacelift/config.yml]
 
 jobs:
-  tag:
-    name: Create git tag from module_version
+  tag-and-release:
+    name: Create tag + GitHub Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Read version from .spacelift/config.yml
+      - name: Read version
         id: version
         run: |
           VERSION=$(grep 'module_version' .spacelift/config.yml | sed 's/.*"\(.*\)".*/\1/')
           echo "version=v${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag (if not exists)
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch --tags
-          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.version.outputs.version }} already exists, skipping."
-          else
-            git tag "${{ steps.version.outputs.version }}"
-            git push origin "${{ steps.version.outputs.version }}"
-            echo "Created tag ${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping."
+            exit 0
           fi
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --generate-notes --title "$TAG"
