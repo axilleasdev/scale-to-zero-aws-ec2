@@ -58,28 +58,29 @@ def update_route53(ip: str) -> dict[str, Any]:
 
 def update_cloudfront(ip: str) -> dict[str, Any]:
     cf = boto3.client("cloudfront")
-    dist_id = os.environ["DISTRIBUTION_ID"]
+    dist_ids = os.environ["DISTRIBUTION_IDS"].split(",")
     origin_id = os.environ["ORIGIN_ID"]
 
     # CloudFront doesn't allow raw IPs. Use sslip.io wildcard DNS.
     new_domain = ip.replace(".", "-") + ".sslip.io"
 
-    # Get current config
-    resp = cf.get_distribution_config(Id=dist_id)
-    config = resp["DistributionConfig"]
-    etag = resp["ETag"]
+    results = []
+    for dist_id in dist_ids:
+        resp = cf.get_distribution_config(Id=dist_id)
+        config = resp["DistributionConfig"]
+        etag = resp["ETag"]
 
-    # Find and update our origin
-    for origin in config["Origins"]["Items"]:
-        if origin["Id"] == origin_id:
-            old_domain = origin["DomainName"]
-            if old_domain == new_domain:
-                return {"status": "unchanged", "mode": "cloudfront", "ip": ip}
-            origin["DomainName"] = new_domain
-            break
+        for origin in config["Origins"]["Items"]:
+            if origin["Id"] == origin_id:
+                if origin["DomainName"] == new_domain:
+                    results.append({"dist": dist_id, "status": "unchanged"})
+                    break
+                origin["DomainName"] = new_domain
+                cf.update_distribution(Id=dist_id, DistributionConfig=config, IfMatch=etag)
+                results.append({"dist": dist_id, "status": "updated"})
+                break
 
-    cf.update_distribution(Id=dist_id, DistributionConfig=config, IfMatch=etag)
-    return {"status": "ok", "mode": "cloudfront", "ip": ip, "domain": new_domain, "old": old_domain}
+    return {"status": "ok", "mode": "cloudfront", "ip": ip, "domain": new_domain, "results": results}
 
 
 # ─── Handler ────────────────────────────────────────────────────────────────

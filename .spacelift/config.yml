@@ -1,11 +1,22 @@
 version: "1"
 
-module_version: "0.3.1"
+module_version: "0.4.0"
 
 tests:
-  - name: "Full deployment"
+  - name: "Multi-app deployment"
     project_root: tests/spacelift
     after_apply:
-      - echo "Waiting for EC2 boot + app startup..."
+      - echo "Waiting for EC2 boot + apps startup..."
       - sleep 120
-      - "curl -sf $(terraform output -raw url) | grep -q '/vote' && echo 'PASS: app is live' || (echo 'FAIL: app not ready' && exit 1)"
+      - |
+        URLS=$(terraform output -json urls | jq -r '.[]')
+        PASS=true
+        for URL in $URLS; do
+          if curl -sf "$URL" | grep -q '<html'; then
+            echo "PASS: $URL responds"
+          else
+            echo "FAIL: $URL not reachable"
+            PASS=false
+          fi
+        done
+        $PASS || exit 1
