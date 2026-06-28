@@ -1,22 +1,17 @@
 version: "1"
 
-module_version: "0.4.0"
+module_version: "0.5.0"
 
 tests:
-  - name: "Multi-app deployment"
+  - name: "Demo + Custom deploy modes"
     project_root: tests/spacelift
     after_apply:
       - echo "Waiting for EC2 boot + apps startup..."
       - sleep 120
       - |
-        URLS=$(terraform output -json urls | jq -r '.[]')
-        PASS=true
-        for URL in $URLS; do
-          if curl -sf "$URL" | grep -q '<html'; then
-            echo "PASS: $URL responds"
-          else
-            echo "FAIL: $URL not reachable"
-            PASS=false
-          fi
-        done
-        $PASS || exit 1
+        DEMO_URL=$(terraform output -raw demo_url)
+        CUSTOM_URL=$(terraform output -raw custom_url)
+        echo "Testing demo: $DEMO_URL"
+        curl -sf "$DEMO_URL" | grep -q '/vote' && echo "PASS: demo app (cats-vs-dogs)" || (echo "FAIL: demo app" && exit 1)
+        echo "Testing custom: $CUSTOM_URL"
+        curl -sf "$CUSTOM_URL" | grep -q 'nginx\|Welcome' && echo "PASS: custom app (nginx)" || (echo "FAIL: custom app" && exit 1)

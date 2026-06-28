@@ -115,3 +115,26 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "deploy_mode" {
+  description = "What to deploy on EC2 boot: 'none' (Docker only), 'demo' (cats-vs-dogs), 'custom' (your docker-compose)."
+  type        = string
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "demo", "custom"], var.deploy_mode)
+    error_message = "deploy_mode must be 'none', 'demo', or 'custom'."
+  }
+}
+
+variable "docker_compose_content" {
+  description = "Docker Compose file content. Used when deploy_mode = 'custom'. Written to /home/ubuntu/app/docker-compose.yml."
+  type        = string
+  default     = ""
+}
+
+variable "extra_boot_script" {
+  description = "Extra shell commands to run at the end of EC2 boot (after Docker is ready). Useful for cloning repos, setting env vars, etc."
+  type        = string
+  default     = ""
+}
