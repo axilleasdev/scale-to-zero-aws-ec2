@@ -50,6 +50,10 @@ resource "aws_security_group" "ec2" {
   description = "Inbound app port; outbound all. No SSH (use SSM)."
   vpc_id      = data.aws_vpc.default.id
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   ingress {
     description      = "App port"
     from_port        = var.app_port
