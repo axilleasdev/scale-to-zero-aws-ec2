@@ -89,6 +89,18 @@ variable "log_retention_days" {
   default     = 14
 }
 
+variable "api_throttle_rate" {
+  description = "API Gateway max sustained requests per second. Lower values reduce cost exposure under DDoS attacks."
+  type        = number
+  default     = 5
+}
+
+variable "api_throttle_burst" {
+  description = "API Gateway max burst requests (short spikes above the rate limit)."
+  type        = number
+  default     = 20
+}
+
 variable "tags" {
   description = "Extra tags merged onto every resource."
   type        = map(string)

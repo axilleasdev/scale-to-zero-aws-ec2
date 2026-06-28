@@ -73,8 +73,24 @@ That's it. You'll get a CloudFront URL that serves your app.
 | `instance_type` | `"t4g.small"` | EC2 instance type |
 | `public_domain` | `""` | Custom domain (optional) |
 | `auto_stop_idle_window_min` | `15` | Minutes of idle before stopping |
+| `api_throttle_rate` | `5` | Max requests/sec to API Gateway (DDoS protection) |
+| `api_throttle_burst` | `20` | Max burst requests above the rate limit |
 
 Full list in [`variables.tf`](variables.tf).
+
+## DDoS protection
+
+The module includes built-in API Gateway throttling to limit cost exposure under attack. The Lambda router only runs when EC2 is down (failover), and throttling caps how many requests reach it per second.
+
+```hcl
+module "scale_to_zero" {
+  # ...
+  api_throttle_rate  = 2   # stricter: ~$2/mo max under sustained attack
+  api_throttle_burst = 10
+}
+```
+
+For additional protection, put Cloudflare (free) in front of your CloudFront URL.
 
 ## Custom domain (optional)
 
