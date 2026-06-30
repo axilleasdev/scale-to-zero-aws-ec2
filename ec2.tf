@@ -110,6 +110,7 @@ resource "aws_instance" "app" {
   subnet_id              = local.subnet_id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ssm.name
+  hibernation            = var.hibernate_enabled
 
   # Root volume is ephemeral — destroyed on terminate. The data lives on
   # aws_ebs_volume.data, attached below.
