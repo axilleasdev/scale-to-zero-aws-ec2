@@ -6,29 +6,10 @@ tests:
   - name: "Full test suite"
     project_root: tests/spacelift
     after_apply:
-      - echo "Waiting for all EC2s to boot..."
-      - sleep 120
-      - echo "=== Test 1: Demo app ==="
-      - |
-        URL=$(terraform output -raw demo_url)
-        curl -sf "$URL" | grep -q '/vote' && echo "PASS: demo app" || (echo "FAIL: demo app" && exit 1)
-      - echo "=== Test 2: Custom app (nginx) ==="
-      - |
-        URL=$(terraform output -raw custom_url)
-        curl -sf "$URL" | grep -q 'nginx\|Welcome' && echo "PASS: custom app" || (echo "FAIL: custom app" && exit 1)
-      - echo "=== Test 3: Hibernate cycle ==="
-      - |
-        URL=$(terraform output -raw hibernate_url)
-        curl -sf "$URL" | grep -q '/vote' && echo "PASS: hibernate app up" || (echo "FAIL: hibernate app not up" && exit 1)
-      - |
-        INSTANCE_ID=$(terraform output -raw hibernate_instance_id)
-        echo "Hibernating $INSTANCE_ID..."
-        aws ec2 stop-instances --instance-ids "$INSTANCE_ID" --hibernate --region eu-central-1
-        aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID" --region eu-central-1
-        echo "Resuming..."
-        aws ec2 start-instances --instance-ids "$INSTANCE_ID" --region eu-central-1
-        aws ec2 wait instance-running --instance-ids "$INSTANCE_ID" --region eu-central-1
-        sleep 15
-      - |
-        URL=$(terraform output -raw hibernate_url)
-        curl -sf "$URL" | grep -q '/vote' && echo "PASS: resumed from hibernate" || (echo "FAIL: not back after hibernate" && exit 1)
+      - "echo 'Waiting for all EC2s to boot...' && sleep 120"
+      - "echo '=== Test 1: Demo app ===' && curl -sf $(terraform output -raw demo_url) | grep -q '/vote' && echo 'PASS: demo app' || (echo 'FAIL: demo app' && exit 1)"
+      - "echo '=== Test 2: Custom app ===' && curl -sf $(terraform output -raw custom_url) | grep -q 'nginx\\|Welcome' && echo 'PASS: custom app' || (echo 'FAIL: custom app' && exit 1)"
+      - "echo '=== Test 3: Hibernate - verify app up ===' && curl -sf $(terraform output -raw hibernate_url) | grep -q '/vote' && echo 'PASS: hibernate app up' || (echo 'FAIL: hibernate app not up' && exit 1)"
+      - "echo '=== Test 3: Hibernate - stop ===' && aws ec2 stop-instances --instance-ids $(terraform output -raw hibernate_instance_id) --hibernate --region eu-central-1 && aws ec2 wait instance-stopped --instance-ids $(terraform output -raw hibernate_instance_id) --region eu-central-1 && echo 'Hibernated'"
+      - "echo '=== Test 3: Hibernate - resume ===' && aws ec2 start-instances --instance-ids $(terraform output -raw hibernate_instance_id) --region eu-central-1 && aws ec2 wait instance-running --instance-ids $(terraform output -raw hibernate_instance_id) --region eu-central-1 && sleep 15 && echo 'Resumed'"
+      - "echo '=== Test 3: Hibernate - verify resumed ===' && curl -sf $(terraform output -raw hibernate_url) | grep -q '/vote' && echo 'PASS: resumed from hibernate' || (echo 'FAIL: not back after hibernate' && exit 1)"
