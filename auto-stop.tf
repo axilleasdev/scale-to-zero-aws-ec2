@@ -80,6 +80,7 @@ resource "aws_lambda_function" "auto_stop" {
       IDLE_WINDOW_MIN    = tostring(var.auto_stop_idle_window_min)
       IDLE_THRESHOLD_PPS = tostring(var.auto_stop_threshold_pps)
       MIN_UPTIME_MIN     = tostring(var.auto_stop_min_uptime_min)
+      HIBERNATE          = tostring(var.hibernate_enabled)
     }
   }
 

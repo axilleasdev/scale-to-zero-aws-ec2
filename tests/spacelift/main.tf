@@ -16,7 +16,7 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Test 1: demo mode (cats-vs-dogs)
+# Test 1: demo mode
 module "demo" {
   source = "../.."
 
@@ -58,10 +58,36 @@ module "custom" {
   }
 }
 
+# Test 3: hibernate
+module "hibernate" {
+  source = "../.."
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name_prefix       = "ci-hibe"
+  deploy_mode       = "demo"
+  hibernate_enabled = true
+
+  apps = {
+    app = { port = 8080 }
+  }
+}
+
 output "demo_url" {
   value = module.demo.public_url["voting"]
 }
 
 output "custom_url" {
   value = module.custom.public_url["nginx"]
+}
+
+output "hibernate_url" {
+  value = module.hibernate.public_url["app"]
+}
+
+output "hibernate_instance_id" {
+  value = module.hibernate.ec2_instance_id
 }

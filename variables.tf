@@ -156,3 +156,9 @@ variable "subnet_id" {
   type        = string
   default     = ""
 }
+
+variable "hibernate_enabled" {
+  description = "Enable hibernation for faster wake-up (~5s vs ~30s). Requires encrypted root volume. Cannot be changed after launch (forces instance recreation)."
+  type        = bool
+  default     = false
+}

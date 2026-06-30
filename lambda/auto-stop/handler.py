@@ -85,8 +85,11 @@ def average_packets_out(window_min: int) -> float | None:
     return avg_per_period / 60.0
 
 
+HIBERNATE = os.environ.get("HIBERNATE", "false").lower() == "true"
+
+
 def stop_instance() -> None:
-    ec2.stop_instances(InstanceIds=[INSTANCE_ID])
+    ec2.stop_instances(InstanceIds=[INSTANCE_ID], Hibernate=HIBERNATE)
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
