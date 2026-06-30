@@ -138,3 +138,21 @@ variable "extra_boot_script" {
   type        = string
   default     = ""
 }
+
+variable "loading_page_html" {
+  description = "Custom HTML for the loading page shown while EC2 boots. If empty, uses the default built-in page."
+  type        = string
+  default     = ""
+}
+
+variable "vpc_id" {
+  description = "VPC ID to deploy into. If empty, uses the default VPC."
+  type        = string
+  default     = ""
+}
+
+variable "subnet_id" {
+  description = "Subnet ID for the EC2 instance. If empty, uses the first default subnet in AZ 'a'."
+  type        = string
+  default     = ""
+}

@@ -48,7 +48,7 @@ resource "aws_iam_instance_profile" "ssm" {
 resource "aws_security_group" "ec2" {
   name        = "${var.name_prefix}-ec2"
   description = "Inbound app port; outbound all. No SSH (use SSM)."
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = local.vpc_id
 
   lifecycle {
     create_before_destroy = true
@@ -83,7 +83,7 @@ resource "aws_security_group" "ec2" {
 ##################################################################################
 
 resource "aws_ebs_volume" "data" {
-  availability_zone = data.aws_subnet.default_a.availability_zone
+  availability_zone = local.az
   size              = var.data_volume_size_gb
   type              = "gp3"
   encrypted         = true
@@ -107,7 +107,7 @@ resource "aws_ebs_volume" "data" {
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.ubuntu_arm.id
   instance_type          = var.instance_type
-  subnet_id              = data.aws_subnet.default_a.id
+  subnet_id              = local.subnet_id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ssm.name
 
