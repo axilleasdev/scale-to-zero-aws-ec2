@@ -200,7 +200,13 @@ def _build_response(resp: Any) -> dict[str, Any]:
     }
 
 
+CUSTOM_LOADING_PAGE = os.environ.get("CUSTOM_LOADING_PAGE", "")
+
+
 def loading_page_html(state: str, app_name: str = "App") -> str:
+    if CUSTOM_LOADING_PAGE:
+        return CUSTOM_LOADING_PAGE
+
     state_msg = {
         "stopped": "Starting the server…",
         "pending": "Server is booting…",

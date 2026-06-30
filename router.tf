@@ -73,14 +73,14 @@ resource "aws_lambda_function" "router" {
   memory_size = 256
 
   environment {
-    variables = {
+    variables = merge({
       INSTANCE_ID    = aws_instance.app.id
       APP_PORT       = tostring(var.app_port)
       APP_NAME       = var.name_prefix
       HEALTH_PATH    = "/"
       HEALTH_TIMEOUT = "2"
       PROXY_TIMEOUT  = "25"
-    }
+    }, var.loading_page_html != "" ? { CUSTOM_LOADING_PAGE = var.loading_page_html } : {})
   }
 
   tags = merge(local.common_tags, { Name = "${var.name_prefix}-router" })

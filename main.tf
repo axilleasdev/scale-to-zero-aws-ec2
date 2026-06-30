@@ -22,16 +22,23 @@ locals {
   )
 }
 
-# Default VPC + a default subnet in the first AZ. We don't manage VPC
-# resources here — bring-your-own VPC would be a separate module.
+# VPC + subnet: use provided IDs or fall back to default VPC.
 data "aws_vpc" "default" {
+  count   = var.vpc_id == "" ? 1 : 0
   default = true
 }
 
 data "aws_subnet" "default_a" {
-  vpc_id            = data.aws_vpc.default.id
+  count             = var.subnet_id == "" ? 1 : 0
+  vpc_id            = local.vpc_id
   availability_zone = "${var.aws_region}a"
   default_for_az    = true
+}
+
+locals {
+  vpc_id    = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.default[0].id
+  subnet_id = var.subnet_id != "" ? var.subnet_id : data.aws_subnet.default_a[0].id
+  az        = var.subnet_id != "" ? "${var.aws_region}a" : data.aws_subnet.default_a[0].availability_zone
 }
 
 # Latest Ubuntu 24.04 LTS ARM64 from Canonical.
